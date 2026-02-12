@@ -8,7 +8,7 @@ import api from '@/api/axios';
 
 const router = useRouter();
 
-// URL para guardar las imágenes en la base de datos
+// URL para guardar las imágenes en el servidor
 const img_url = 'http://localhost:8000/storage/';
 
 // ==========================================
@@ -27,7 +27,7 @@ const isEditing = ref(false);
 // Variable para mostrar la visualización de la foto de perfil del usuario
 const imagePreview = ref(null);
 // Variable que sirve para accionar el explorador de archivos del sistema operativo
-// y poder cambiar las imágenes
+// y poder seleccionar una foto de perfil
 const fileInput = ref(null);
 
 // --- Formularios ---
