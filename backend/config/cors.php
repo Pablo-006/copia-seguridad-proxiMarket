@@ -22,6 +22,7 @@ return [
         'http://localhost:5174',
         'http://127.0.0.1:5173',
         'http://127.0.0.1:5174',
+        '*' // De manera temporal, se aceptan peticiones de todos los sitios y luego se agrega la url de Azure de Vue
     ],
 
     'allowed_origins_patterns' => [],
