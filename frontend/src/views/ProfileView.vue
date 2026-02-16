@@ -5,6 +5,8 @@
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import api from '@/api/axios';
+import { useUserStore } from '@/stores/user';
+const userStore = useUserStore();
 
 const router = useRouter();
 
@@ -16,10 +18,6 @@ const img_url = 'http://localhost:8000/storage/';
 // ==========================================
 
 // --- Estado Global de la Vista ---
-// Variable para guardar los datos del usuario
-const user = ref(null);
-// Variable para hacer un estado de carga antes de cargar el usuario
-const loading = ref(true);
 // Variable para diferenciar entre mostrar la información del usuario o editarla
 const isEditing = ref(false);
 
@@ -85,20 +83,7 @@ const triggerFileInput = () => {
 // ==========================================
 
 // Obtener datos del usuario para mostrar el perfil de dicho usuario
-const fetchUser = async () => {
-    try {
-        const response = await api.get('/user');
-        user.value = response.data;
-        // Al cargar los datos del usuario por primera vez, se ejecuta esta función
-        // para mostrarlos por pantalla
-        resetForm();
-    } catch (error) {
-        console.error("Error al obtener usuario:", error);
-    } finally {
-        // Se finaliza el estado de carga, mostrando los datos del usuario
-        loading.value = false;
-    }
-};
+// La función para obtener los datos del usuario se encuentra en user.js
 
 // Guardar cambios del perfil
 const saveProfile = async () => {
@@ -232,7 +217,7 @@ const goToPickupPoints = () => router.push('/seller/pickup-points');
 
 // Luego de cargar el html, se cargan los datos del usuario
 onMounted(async () => {
-    await fetchUser();
+    await userStore.fetchUser();
 });
 </script>
 
