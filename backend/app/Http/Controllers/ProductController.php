@@ -15,7 +15,7 @@ class ProductController extends Controller
     {   
         return Product::where('is_active', true)
                       ->with('seller') // Cargamos nombre de tienda
-                      ->latest()
+                      ->latest() // ordenar de más reciente a más antiguo
                       ->get();
     }
 
@@ -31,28 +31,30 @@ class ProductController extends Controller
     // 3. Crear Producto (Con TU lógica de imágenes)
     public function store(Request $request)
     {
-        $request->validate([
+        $validated = $request->validate([
             'title' => 'required|string|max:255',
             'price' => 'required|numeric|min:0',
             'unit'  => 'required|string|in:unit,kg,box', 
+            'estimated_weight' => 'required|numeric|gt:0',
             'stock' => 'required|numeric|min:0',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048' 
         ]);
-
-        $data = $request->except(['image']);
         
         // Asignamos el vendedor
-        $data['seller_id'] = Auth::id();
-        $data['is_active'] = true;
-        $data['estimated_weight'] = 1.0; 
+        $validated['seller_id'] = Auth::id();
+        $validated['is_active'] = true;
 
         // Subida de imagen
         if ($request->hasFile('image')) {
+            // El validated no tiene habilitado las funciones de store y demás funciones para manipular archivos
+            // por eso se valida sobre el request
             $path = $request->file('image')->store('products', 'public');
-            $data['image_url'] = $path; 
+            $validated['image_url'] = $path; 
         }
 
-        $product = Product::create($data);
+        // Quitamos el archivo de la imagen para no subirlo a la base de datos
+        unset($validated['image']);
+        $product = Product::create($validated);
 
         return response()->json($product, 201);
     }
@@ -63,25 +65,26 @@ class ProductController extends Controller
             return response()->json(['message' => 'No autorizado'], 403);
         }
 
-        $request->validate([
-            'title' => 'sometimes|string|max:255',
-            'price' => 'sometimes|numeric|min:0',
-            'stock' => 'sometimes|numeric',
-            'image' => 'nullable|image|max:2048'
+        $validated = $request->validate([
+            'title' => 'required|string|max:255',
+            'price' => 'required|numeric|min:0',
+            'unit'  => 'required|string|in:unit,kg,box', 
+            'estimated_weight' => 'required|numeric|gt:0',
+            'stock' => 'required|numeric|min:0',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048' 
         ]);
-
-        $data = $request->except(['image']);
 
         // Gestión de imagen (Borrar vieja, subir nueva)
         if ($request->hasFile('image')) {
             if ($product->image_url && Storage::disk('public')->exists($product->image_url)) {
                 Storage::disk('public')->delete($product->image_url);
             }
-            $data['image_url'] = $request->file('image')->store('products', 'public');
+            $validated['image_url'] = $request->file('image')->store('products', 'public');
         }
 
-        $product->update($data);
-        return $product;
+        unset($validated['image']);
+        $product->update($validated);
+        return response()->json($product, 200);
     }
 
     public function destroy(Product $product)

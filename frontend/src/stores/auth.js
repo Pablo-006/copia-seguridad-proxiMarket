@@ -49,6 +49,17 @@ export const useAuthStore = defineStore('auth', {
 
                 return false; // Fallo
             }
-        }
+        },
+        async logout(){
+            try{
+                // Se realiza la petición al servidor
+                await api.post('/logout');
+            }catch(e){
+                this.error = "Error al cerrar sesión";
+            }finally{
+                // Se borra el token del almacenamiento local del navegador
+                localStorage.removeItem('auth_token');
+            }
+        },
     }
 });

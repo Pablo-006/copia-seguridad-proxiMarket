@@ -37,6 +37,8 @@ class AuthController extends Controller
         // nada con los token)
         $token = $user->createToken('auth_token')->plainTextToken;
 
+        $user->load('seller');
+
         // Se devuelve una respuesta en formato JSON
         return response()->json([
             // Mensaje informativo de que todo ha ido bien
@@ -100,78 +102,5 @@ class AuthController extends Controller
         // (también se borra desde la web en la vista del perfil de Vue)
         $request->user()->currentAccessToken()->delete();
         return response()->json(['message' => 'Sesión cerrada correctamente.']);
-    }
-
-    // Función para obtener la información del usuario que ha iniciado sesión
-    public function user(Request $request){
-        // Se obtiene la información del usuario junto con su perfil de vendedor
-        // (en caso de no tener, los campos estarían en null, y en el frontend
-        // se hace la validación para mostrar o no la información)
-        // La función load es similar a la función with. Sirve para traer
-        // campos de otra tabla con la que está relacionada, pero la función
-        // with sirve antes de tener el dato (user) y hacer la consulta SQL
-        // y la función load sirve cuando ya se tiene el dato (user) y se quiere
-        // traer más info de otras tablas
-        return response()->json($request->user()->load('seller'));
-    }
-
-    public function updateProfile(Request $request) {
-        // Se obtiene la instancia del usuario que ha iniciado sesión
-        $user = $request->user();
-
-        // Se validan los datos que introduce
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'surname' => 'required|string|max:255',
-            // Se valida que el email ha de ser único en la tabla users, que ocupa
-            // el campo email (unique:users,email,). Además, a la hora de editar tu perfil,
-            // si no modificas el email, te saltaría un error, porque Laravel se pondría a buscar
-            // tu email en la base de datos, y como existe, causaría problemas. Para ello,
-            // se añade el trozo '. $user->id,' que sirve para excluir de la búsqueda el id
-            // del usuario que ha iniciado sesión. De esta manera, se soluciona este problema
-            // y además tampoco podrías ponerte el email de otro usuario
-            'email' => 'required|email|max:255|unique:users,email,' . $user->id,
-            // Se valida la foto de perfil. Se valida que sea una imagen, que
-            // coincida con las extensiones que hay abajo y que pese máximo 2MB
-            'avatar_url' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048', 
-        ]);
-
-        // Se valida si el usuario manda un archivo
-        // en el campo de la foto de perfil al actualizar su perfil
-        if ($request->hasFile('avatar_url')) {
-            // Si es que sí, se valida si el usuario tenía previamente una foto de perfil
-            if ($user->avatar_url) {
-                // Si es así, se borra la antigua foto de la carpeta 'public' 
-                // (donde se almacenan las fotos de perfil. La ruta de la carpeta 
-                // se encuentra en storage/app/public/avatars)
-                Storage::disk('public')->delete($user->avatar_url);
-            }
-            
-            // Se guarda en una variable, la ruta donde se va a guardar la foto.
-            // Primero, se obtiene el archivo del campo de Vue donde se aloja la foto
-            // (avatar_url), luego, se almacena en la carpeta 'avatars' dentro
-            // de la carpeta 'public' (ruta mencionada anteriormente). Además,
-            // también modifica el nombre de los archivos para que en caso de que
-            // dos usuarios guarden una foto con el mismo nombre, no se sobreescriban
-            $path = $request->file('avatar_url')->store('avatars', 'public');
-            
-            // Se registra la ruta de la foto de perfil en el registro del usuario
-            // de la base de datos
-            $user->avatar_url = $path; 
-        }
-
-        // Se modifican los campos de la base de datos con los nuevos valores introducidos
-        $user->name = $request->name;
-        $user->surname = $request->surname;
-        $user->email = $request->email;
-        
-        // Se guardan los cambios
-        $user->save();
-
-        // Se devuelve un mensaje de respuesta
-        return response()->json([
-            'message' => 'Perfil actualizado correctamente',
-            'user' => $user
-        ]);
     }
 }

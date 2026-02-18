@@ -4,9 +4,10 @@
 // ==========================================
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import api from '@/api/axios';
 import { useUserStore } from '@/stores/user';
 const userStore = useUserStore();
+import { useAuthStore } from '@/stores/auth';
+const authStore = useAuthStore();
 
 const router = useRouter();
 
@@ -63,10 +64,10 @@ const formatDate = (dateString) => {
 // Función para resetear los campos del formulario en caso de que el usuario
 // cancele la edición
 const resetForm = () => {
-    if (user.value) {
-        form.value.name = user.value.name;
-        form.value.surname = user.value.surname || '';
-        form.value.email = user.value.email;
+    if  (userStore.user) {
+        form.value.name = userStore.user.name;
+        form.value.surname = userStore.user.surname || '';
+        form.value.email = userStore.user.email;
         form.value.avatar_file = null;
         imagePreview.value = null;
     }
@@ -87,34 +88,30 @@ const triggerFileInput = () => {
 
 // Guardar cambios del perfil
 const saveProfile = async () => {
-    try {
-        // Variable con toda la info de los nuevos cambios. Se formatea de manera
-        // que no tenga formato JSON, sino en formato FormData (debido a que JSON no
-        // soporta el envío de archivos binarios) de manera que también acepte archivos 
-        // (la foto de perfil) y poder enviar la info a Laravel posteriormente
-        const formData = new FormData();
-        
-        formData.append('name', form.value.name);
-        formData.append('surname', form.value.surname);
-        formData.append('email', form.value.email);
-        
-        // Si al editar el perfil, se ha asignado o cambiado la foto de perfil,
-        // se asigna al respectivo campo el archivo
-        if (form.value.avatar_file instanceof File) {
-            formData.append('avatar_url', form.value.avatar_file);
-        }
+    // Variable con toda la info de los nuevos cambios. Se formatea de manera
+    // que no tenga formato JSON, sino en formato FormData (debido a que JSON no
+    // soporta el envío de archivos binarios) de manera que también acepte archivos 
+    // (la foto de perfil) y poder enviar la info a Laravel posteriormente
+    const formData = new FormData();
+    
+    formData.append('name', form.value.name);
+    formData.append('surname', form.value.surname);
+    formData.append('email', form.value.email);
+    
+    // Si al editar el perfil, se ha asignado o cambiado la foto de perfil,
+    // se asigna al respectivo campo el archivo
+    if (form.value.avatar_file instanceof File) {
+        formData.append('avatar_url', form.value.avatar_file);
+    }
 
-        // Se hace la petición a Laravel para actualizar el perfil del usuario
-        const response = await api.post('/user/update', formData, {
-            // Se le indica a Laravel que habrá tanto texto como archivos
-            headers: { 'Content-Type': 'multipart/form-data' }
-        });
+    // Se hace la petición a Laravel para actualizar el perfil del usuario
+    const exito = await userStore.updateProfile(formData);
 
-        // Se actualizan los datos del usuario en la vista
-        user.value = response.data.user; 
+    if(exito){
         // Se sale del modo edición
         isEditing.value = false;
-        // Ya no necesitamos la previsualización temporal generada antes, ya que
+
+        // Ya no necesitamos la previsualización temporal generada antes (en la función handleFileChange), ya que
         // tenemos la foto real, se debe borrar de la memoria RAM y se establece a null
         if (imagePreview.value) {
             // Se le avisa al navegador que hay que borrar esta previsualización de la RAM
@@ -122,43 +119,24 @@ const saveProfile = async () => {
             
             // Se limpia la variable ya que no es necesario que tenga un valor
             imagePreview.value = null;
-        }
-        alert("¡Perfil actualizado correctamente!");
-
-    } catch (error) {
-        console.error("Error al guardar:", error);
-        alert(error.response?.data?.message || "Error al guardar los cambios.");
+        }            
     }
 };
 
 // Convertirse en vendedor
 const becomeSeller = async () => {
-    try {
-        // Se realiza la petición al servidor con la información que ha introducido
-        // el usuario para ser un vendedor
-        const response = await api.post('/user/become-seller', sellerForm.value);
-        
-        // Se le asigna la info al usuario en la vista para visualizarla
-        user.value = response.data.user;
-        // Se sale del formulario para rellenar los datos del vendedor y así
-        // mostrar la información que ha introducido
+    const exito = await userStore.becomeSeller(sellerForm.value);
+    if(exito){
         showSellerModal.value = false;
-        alert("¡Felicidades! Tu tienda ha sido creada.");
-    } catch (error) {
-        console.error(error);
-        const msg = error.response?.data?.message || "Error al crear la tienda.";
-        alert("Error: " + msg);
     }
 };
 
 // Función para cerrar sesión
 const handleLogout = async () => {
-    // Se realiza la petición al servidor
-    try { await api.post('/logout'); } catch (e) {}
-    // Se borra el token del almacenamiento local del navegador
-    localStorage.removeItem('auth_token');
+    // Se ejecuta la lógica de cierre de sesión del store
+    await authStore.logout();
     // Se envía al usuario a la página de inicio
-    router.push('/');
+    router.push('/');    
 };
 
 // ==========================================
@@ -167,13 +145,11 @@ const handleLogout = async () => {
 
 // Función para alternar entre modo edición y visualización de datos
 const toggleEdit = () => {
-    // Se le cambia el valor a la variable de estado de edición
+    // Se cargan los datos del usuario en el formulario
+    resetForm();
+
+    // Se le invierte el valor a isEditing para diferenciar entre modo edición y modo lectura
     isEditing.value = !isEditing.value;
-    // Si no se está editando, es decir, si el usuario cancela la edición
-    // se ejecuta la función resetForm() para visualizar los datos del usuario
-    if (!isEditing.value) {
-        resetForm(); // Si cancela, volvemos a los datos originales
-    } 
 };
 
 // Función para obtener el archivo de la foto de perfil y crear una previsualización
@@ -199,7 +175,9 @@ const handleFileChange = (event) => {
         form.value.avatar_file = file;
 
         // Si existía una previsualización de la imagen, se borra de la RAM
-        if (imagePreview.value) URL.revokeObjectURL(imagePreview.value);
+        if (imagePreview.value){
+            URL.revokeObjectURL(imagePreview.value);
+        } 
         // Se le asigna a la constante de la previsualización de la imagen,
         // una URL temporal para poder ver la imagen y además también se guarda en
         // la RAM
@@ -224,11 +202,11 @@ onMounted(async () => {
 <template>
   <div class="profile-wrapper">
     
-    <div v-if="loading" class="loading-state">
+    <div v-if="userStore.loading" class="loading-state">
         <div class="spinner"></div> Cargando perfil...
     </div>
 
-    <div v-else-if="user" class="profile-card">
+    <div v-else-if="userStore.user" class="profile-card">
       
       <div class="profile-header">
         <router-link to="/" class="back-home-btn" title="Volver al Inicio">
@@ -239,12 +217,12 @@ onMounted(async () => {
             
             <img v-if="imagePreview" :src="imagePreview" class="avatar-img" />
             
-            <img v-else-if="user.avatar_url" 
-                 :src="user.avatar_url.startsWith('http') ? user.avatar_url : img_url + user.avatar_url" 
+            <img v-else-if="userStore.user.avatar_url" 
+                 :src="userStore.user.avatar_url.startsWith('http') ? userStore.user.avatar_url : img_url + userStore.user.avatar_url" 
                  class="avatar-img" />
             
             <div v-else class="avatar-placeholder">
-                {{ user.name.charAt(0).toUpperCase() }}
+                {{ userStore.user.name.charAt(0).toUpperCase() }}
             </div>
 
             <div v-if="isEditing" class="avatar-overlay">
@@ -255,10 +233,10 @@ onMounted(async () => {
         <input type="file" ref="fileInput" @change="handleFileChange" style="display: none" accept="image/*">
 
         <div v-if="!isEditing" class="header-info">
-            <h2 class="user-name">{{ user.name }} {{ user.surname }}</h2>
+            <h2 class="user-name">{{ userStore.user.name }} {{ userStore.user.surname }}</h2>
             
             <div class="role-badge-container">
-                <span v-if="user.role === 'seller' || user.role === 'vendedor'" class="badge seller">
+                <span v-if="userStore.user.role === 'seller' || userStore.user.role === 'vendedor'" class="badge seller">
                     ✅ Vendedor Verificado
                 </span>
                 <span v-else class="badge member">Miembro de ProxiMarkt</span>
@@ -291,20 +269,20 @@ onMounted(async () => {
         <div v-else class="info-view">
             <div class="info-row">
                 <label>Email</label>
-                <p>{{ user.email }}</p>
+                <p>{{ userStore.user.email }}</p>
             </div>
 
-            <div v-if="user.seller" class="store-box">
+            <div v-if="userStore.user.seller" class="store-box">
                 <div class="store-icon">🏪</div>
                 <div>
-                    <p class="store-name">{{ user.seller.store_name }}</p>
-                    <small class="store-nif">NIF: {{ user.seller.nif }}</small>
+                    <p class="store-name">{{ userStore.user.seller.store_name }}</p>
+                    <small class="store-nif">NIF: {{ userStore.user.seller.nif }}</small>
                 </div>
             </div>
             
             <div class="info-row">
                 <label>Miembro desde</label>
-                <p>{{ formatDate(user.created_at) }}</p>
+                <p>{{ formatDate(userStore.user.created_at) }}</p>
             </div>
 
             <hr class="divider">
@@ -312,7 +290,7 @@ onMounted(async () => {
             <div class="main-actions">
                 <button @click="toggleEdit" class="btn btn-outline">✏️ Editar Perfil</button>
                 
-                <template v-if="user.role === 'seller' || user.role === 'vendedor'">
+                <template v-if="userStore.user.role === 'seller' || userStore.user.role === 'vendedor'">
                     
                     <button @click="goToInventory" class="btn btn-inventory">
                         📦 Gestionar Inventario
@@ -324,7 +302,7 @@ onMounted(async () => {
 
                 </template>
 
-                <button v-if="user.role !== 'seller' && user.role !== 'vendedor'" 
+                <button v-if="userStore.user.role !== 'seller' && userStore.user.role !== 'vendedor'" 
                         @click="showSellerModal = true" 
                         class="btn btn-become-seller">
                     🚀 ¡Quiero Vender!
@@ -355,6 +333,11 @@ onMounted(async () => {
                     <label>Descripción</label>
                     <textarea v-model="sellerForm.description" rows="3" placeholder="Vendo frutas ecológicas..." class="input-field"></textarea>
                 </div>
+
+                <div v-if="userStore.error" class="error-alert">
+                    {{ userStore.error }}
+                </div>
+
                 <div class="modal-actions">
                     <button type="button" @click="showSellerModal = false" class="btn btn-secondary">Cancelar</button>
                     <button type="submit" class="btn btn-success">Crear Tienda</button>
@@ -446,4 +429,18 @@ onMounted(async () => {
 .loading-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 50vh; color: #64748b; }
 .spinner { width: 30px; height: 30px; border: 3px solid #f3f3f3; border-top: 3px solid #3b82f6; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 10px; }
 @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+/* Mensaje de error */
+.error-alert {
+    background-color: #fee2e2; /* Fondo rojito claro */
+    color: #dc2626; /* Texto rojo oscuro */
+    padding: 10px 15px;
+    border-radius: 6px;
+    margin-bottom: 15px;
+    font-size: 0.9rem;
+    border: 1px solid #f87171;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
 </style>

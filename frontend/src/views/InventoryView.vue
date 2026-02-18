@@ -1,127 +1,129 @@
 <script setup>
-import { ref, onMounted, reactive } from 'vue';
-import api from '@/api/axios';
+// IMPORTS Y CONEXIONES CON LOS STORES
+import { ref, onMounted } from 'vue';
+import { useProductStore } from '@/stores/product';
+const productStore = useProductStore();
 
-const products = ref([]);
-const loading = ref(true);
-const showModal = ref(false);
+// CONSTANTES (esta constante opino que debería ir en el .env ya que también se usa
+// en el perfil)
+const img_url = 'http://localhost:8000/storage/';
+
+// VARIABLES REACTIVAS
+const showEditModal = ref(false);
+const showDeleteModal = ref(false);
 const isEditing = ref(false);
 const editingId = ref(null);
-
-// Formulario reactivo
-const form = reactive({
+const deleteId = ref(null);
+const form = ref({
     title: '',
     price: '',
     unit: 'kg', 
     stock: '',
-    image_file: null // Aquí guardaremos el archivo binario
+    estimated_weight: '',
+    image_file: null,
+    current_image: null
 });
 
 // Variable para la previsualización local de la imagen
-const previewImage = ref(null);
+// preguntar acerca de las diferencias sobre la carga de imágenes en esta vista
+// y en la vista del perfil
+const imagePreview = ref(null);
 
-// IMPORTANTE: Asegúrate de que esto coincide con tu dominio de Laravel
-// Si estás en local suele ser: http://localhost:8000/storage/
-const BASE_URL = 'http://localhost:8000/storage/';
+// INSTRUCCIONES/FUNCIONES DE LA VISTA
 
-onMounted(() => {
-    loadProducts();
-});
-
+// Carga de los productos
 const loadProducts = async () => {
-    try {
-        const response = await api.get('/seller/my-products');
-        products.value = response.data;
-    } catch (error) {
-        console.error("Error cargando inventario:", error);
-    } finally {
-        loading.value = false;
-    }
+    await productStore.getSellerProducts();
 };
 
+// Abir el modo edicion?
 const openModal = (product = null) => {
-    showModal.value = true;
-    form.image_file = null; // Reiniciar archivo
+    showEditModal.value = true;
+    form.value.image_file = null; // Reiniciar archivo
     
     if (product) {
         isEditing.value = true;
         editingId.value = product.id;
-        form.title = product.title;
-        form.price = product.price;
-        form.unit = product.unit; 
-        form.stock = product.stock;
-        
-        // Si tiene imagen guardada, mostramos esa URL, si no, null
-        previewImage.value = product.image_url ? BASE_URL + product.image_url : null;
+        form.value.title = product.title;
+        form.value.price = product.price;
+        form.value.unit = product.unit; 
+        form.value.stock = product.stock;
+        form.value.estimated_weight = product.estimated_weight;
+        form.value.current_image = product.image_url;
+
     } else {
         isEditing.value = false;
         editingId.value = null;
-        form.title = ''; form.price = ''; form.unit = 'kg'; form.stock = ''; 
-        previewImage.value = null;
+        form.value.title = ''; 
+        form.value.price = ''; 
+        form.value.unit = 'kg'; 
+        form.value.stock = ''; 
+        form.value.estimated_weight = '';
+        form.value.current_image = null;
     }
 };
 
 // Función para capturar el archivo cuando el usuario lo selecciona
+// (pararse a ver esta función por las diferencias con la vista del perfil
+// relacionadas con las imagenes comentado anteriormente)
 const handleFileUpload = (event) => {
     const file = event.target.files[0];
     if (file) {
-        form.image_file = file;
-        // Crear una URL local temporal para previsualizar inmediatamente
-        previewImage.value = URL.createObjectURL(file);
+        form.value.image_file = file;
+
+        if(imagePreview.value){
+            URL.revokeObjectURL(file);
+        }
+
+        imagePreview.value = URL.createObjectURL(file);
     }
 };
 
-const saveProduct = async () => {
-    try {
-        // Para enviar archivos, necesitamos FormData
-        let formData = new FormData();
-        formData.append('title', form.title);
-        formData.append('price', form.price);
-        formData.append('unit', form.unit);
-        formData.append('stock', form.stock);
+// Guardar un producto
+const handleSaveProduct = async () => {
+    // Para enviar archivos, necesitamos FormData
+    let formData = new FormData();
+    formData.append('title', form.value.title);
+    formData.append('price', form.value.price);
+    formData.append('unit', form.value.unit);
+    formData.append('stock', form.value.stock);
+    formData.append('estimated_weight', form.value.estimated_weight);
 
-        // Solo adjuntamos la imagen si el usuario seleccionó una nueva
-        if (form.image_file) {
-            formData.append('image', form.image_file);
-        }
-
-        if (isEditing.value) {
-            // TRUCO: Laravel no procesa bien 'multipart/form-data' en peticiones PUT.
-            // Solución: Enviar como POST y agregar campo _method = PUT
-            formData.append('_method', 'PUT');
-            await api.post(`/products/${editingId.value}`, formData, {
-                headers: { 'Content-Type': 'multipart/form-data' }
-            });
-        } else {
-            await api.post('/products', formData, {
-                headers: { 'Content-Type': 'multipart/form-data' }
-            });
-        }
-
-        showModal.value = false;
-        loadProducts(); 
-    } catch (error) {
-        console.error(error);
-        if (error.response && error.response.status === 422) {
-            let errorMsg = "Error de validación:\n";
-            const errors = error.response.data.errors;
-            for (const key in errors) { errorMsg += `- ${errors[key][0]}\n`; }
-            alert(errorMsg);
-        } else {
-            alert("Error al guardar. Revisa la consola.");
-        }
+    // Solo adjuntamos la imagen si el usuario seleccionó una nueva
+    if (form.value.image_file) {
+        formData.append('image', form.value.image_file);
     }
+
+    // Como le puedo pasar el id del producto por parámetro si en esta función
+    // no tengo dicho id?
+    await productStore.saveProduct(formData, isEditing.value, editingId.value);
+
+    editingId.value = null;
+    imagePreview.value = null;
+    showEditModal.value = false;  
 };
 
+// Borrar un producto
+
+// De donde sale el id por parámetro?: sale del template, cuando se recorre el listado
+// de productos con un for, sobre cada producto se crea un botón que tiene asignado el 
+// respectivo id del producto (hacer énfasis para recordar el funcionamiento de Vue en cuanto
+// a los template)
 const remove = async (id) => {
-    if(!confirm("¿Seguro que quieres eliminar este producto?")) return;
-    try {
-        await api.delete(`/products/${id}`);
-        loadProducts();
-    } catch (error) {
-        console.error(error);
-    }
+    deleteId.value = id;
+    showDeleteModal.value = true;
 };
+
+const handleDeleteProduct = async () => {
+    await productStore.deleteProduct(deleteId.value);
+    showDeleteModal.value = false;
+    deleteId.value = null;
+};
+
+// onMounted/Carga de los datos
+onMounted(() => {
+    loadProducts();
+});
 </script>
 
 <template>
@@ -137,15 +139,15 @@ const remove = async (id) => {
                 </button>
             </div>
 
-            <div v-if="loading" class="loading-state">
+            <div v-if="productStore.loading" class="loading-state">
                 <div class="spinner"></div> Cargando inventario...
             </div>
 
-            <ul v-else-if="products.length > 0" class="product-list">
-                <li v-for="p in products" :key="p.id" class="product-item">
-                    
+            <ul v-else-if="productStore.products.length > 0" class="product-list">
+                <li v-for="p in productStore.products" :key="p.id" class="product-item">
+
                     <div class="product-img-wrapper">
-                        <img :src="p.image_url ? BASE_URL + p.image_url : 'https://via.placeholder.com/150?text=Sin+Foto'" 
+                        <img :src="p.image_url ? (p.image_url.startsWith('http') ? p.image_url : img_url + p.image_url) : 'https://via.placeholder.com/150?text=Sin+Foto'" 
                              alt="Producto" class="product-thumb">
                     </div>
 
@@ -156,6 +158,7 @@ const remove = async (id) => {
                             <span class="badge stock" :class="{ 'low-stock': p.stock < 5 }">
                                 Stock: {{ p.stock }}
                             </span>
+                            <span class="badge weight">{{ p.estimated_weight }} Kg</span>
                         </div>
                     </div>
 
@@ -173,14 +176,14 @@ const remove = async (id) => {
         </div>
 
         <transition name="fade">
-            <div v-if="showModal" class="modal-overlay" @click.self="showModal = false">
+            <div v-if="showEditModal" class="modal-overlay">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h3>{{ isEditing ? '✏️ Editar Producto' : '✨ Nuevo Producto' }}</h3>
-                        <button @click="showModal = false" class="close-btn">×</button>
+                        <button @click="showEditModal = false" class="close-btn">×</button>
                     </div>
                     
-                    <form @submit.prevent="saveProduct" class="modal-body">
+                    <form @submit.prevent="handleSaveProduct" class="modal-body">
                         <div class="form-group">
                             <label>Nombre del Producto</label>
                             <input v-model="form.title" type="text" required class="input-field">
@@ -206,24 +209,50 @@ const remove = async (id) => {
                             <input v-model="form.stock" type="number" step="0.001" required class="input-field">
                         </div>
 
+                        <div class="form-group half">
+                                <label>Peso estimado (kg/ud)</label>
+                                <input v-model="form.estimated_weight" type="number" step="0.01" required class="input-field">
+                        </div>
+
                         <div class="form-group">
                             <label>Imagen del Producto</label>
                             <input type="file" @change="handleFileUpload" accept="image/*" class="input-field file-input">
                             <small class="helper-text">Formatos: JPG, PNG. Máx 2MB</small>
                             
-                            <div v-if="previewImage" class="image-preview-box">
-                                <img :src="previewImage" alt="Vista previa">
+                            <div class="image-preview-box">
+                                <img v-if="imagePreview" :src="imagePreview" alt="Vista previa">
+                                <img v-else-if="form.current_image" :src="form.current_image.startsWith('http') ? form.current_image : img_url + form.current_image" alt="Imagen actual">
                             </div>
+
+
                         </div>
 
                         <div class="modal-actions">
-                            <button type="button" @click="showModal = false" class="btn-cancel">Cancelar</button>
+                            <button type="button" @click="showEditModal = false, imagePreview = null" class="btn-cancel">Cancelar</button>
                             <button type="submit" class="btn-save">Guardar Producto</button>
                         </div>
                     </form>
                 </div>
             </div>
         </transition>
+
+        <transition name="fade">
+            <div v-if="showDeleteModal" class="modal-overlay">
+                
+                <div class="modal-content modal-delete">
+                    <div class="modal-icon">⚠️</div>
+                    <h3 class="modal-title">¿Estás seguro?</h3>
+                    <p class="modal-text">Esta acción eliminará el producto permanentemente.</p>
+                    
+                    <div class="modal-actions-center">
+                        <button @click="showDeleteModal = false" class="btn-cancel">Cancelar</button>
+                        <button @click="handleDeleteProduct()" class="btn-danger">Sí, eliminar</button>
+                    </div>
+                </div>
+
+            </div>
+        </transition>
+
     </div>
 </template>
 
@@ -253,6 +282,7 @@ const remove = async (id) => {
 .badge.price { background-color: #eff6ff; color: #3b82f6; }
 .badge.stock { background-color: #f1f5f9; color: #64748b; }
 .badge.stock.low-stock { background-color: #fef2f2; color: #ef4444; }
+.badge.weight { background-color: #fef3c7; color: #d97706; }
 .product-actions { display: flex; gap: 10px; }
 .btn-icon { padding: 6px 12px; border-radius: 6px; border: none; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
 .btn-icon.edit { background-color: #e0f2fe; color: #0284c7; }
@@ -264,6 +294,11 @@ const remove = async (id) => {
 .modal-header { padding: 20px 25px; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; background: #f8fafc; }
 .close-btn { background: none; border: none; font-size: 1.5rem; color: #94a3b8; cursor: pointer; }
 .modal-body { padding: 25px; }
+.modal-delete {max-width: 400px; text-align: center; padding: 30px;}
+.modal-icon {font-size: 3rem; margin-bottom: 15px;}
+.modal-title {margin-bottom: 10px; color: #1e293b;}
+.modal-text {color: #64748b; margin-bottom: 25px;}
+.modal-actions-center {display: flex; gap: 15px; justify-content: center;}
 .form-group { margin-bottom: 18px; }
 .form-row { display: flex; gap: 15px; }
 .form-group.half { flex: 1; }
@@ -276,6 +311,8 @@ label { display: block; margin-bottom: 6px; font-weight: 600; color: #475569; fo
 .modal-actions { display: flex; gap: 10px; margin-top: 25px; }
 .btn-save { flex: 2; background-color: #3b82f6; color: white; border: none; padding: 12px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: background 0.2s; }
 .btn-cancel { flex: 1; background-color: white; border: 1px solid #cbd5e1; color: #475569; padding: 12px; border-radius: 8px; font-weight: 600; cursor: pointer; }
+.btn-danger {background-color: #dc2626; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: background 0.2s;}
+.btn-danger:hover {background-color: #b91c1c;}
 .loading-state { padding: 40px; text-align: center; color: #64748b; }
 .spinner { border: 3px solid #f3f3f3; border-top: 3px solid #3b82f6; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; margin: 0 auto 10px; }
 @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
