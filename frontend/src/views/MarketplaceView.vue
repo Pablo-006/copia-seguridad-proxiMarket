@@ -3,6 +3,8 @@ import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import api from '../api/axios.js'; 
 
+const img_url = 'http://localhost:8000/storage/';
+
 const products = ref([]);
 const loading = ref(true);
 const router = useRouter();
@@ -158,7 +160,7 @@ const confirmPurchase = async () => {
       <div v-else class="products-grid">
         <div v-for="product in filteredProducts" :key="product.id" class="product-card">
           <div class="image-container">
-             <img :src="product.image_url || 'https://via.placeholder.com/300x200?text=Producto+Local'" alt="Producto" class="product-img">
+             <img :src="product.image_url ? product.image_url.startsWith('http') ? product.image_url : img_url + product.image_url : 'https://placehold.co/300x200?text=Producto+Local'" alt="Producto" class="product-img">
              <span class="stock-badge" v-if="product.stock > 0">Stock: {{ product.stock }}</span>
              <span class="stock-badge no-stock" v-else>Agotado</span>
           </div>
