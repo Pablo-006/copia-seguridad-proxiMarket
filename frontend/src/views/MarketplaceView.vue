@@ -1,7 +1,9 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
-import api from '../api/axios.js'; 
+import api from '@/api/axios'; 
+import { useCartStore } from '@/stores/cart';
+const cartStore = useCartStore();
 
 const img_url = 'http://localhost:8000/storage/';
 
@@ -135,6 +137,9 @@ const confirmPurchase = async () => {
   <div class="marketplace-container">
     <h2 class="title">🍏 Mercado de Proximidad</h2>
     <p class="subtitle">Productos frescos directos del agricultor a tu mesa.</p>
+    <div style="background: #ffeaa7; padding: 10px; text-align: center; border-radius: 5px; margin-bottom: 20px;">
+      <p><strong>Chivato Temporal: </strong> Tienes {{ cartStore.totalItems }} en el carrito. Total: {{ cartStore.totalPrice }}€</p>
+    </div>
 
     <div class="filters-wrapper">
       <div class="search-box">
@@ -171,8 +176,25 @@ const confirmPurchase = async () => {
               <span class="price" :class="{'highlight-price': product.price <= maxPrice}">{{ product.price }}€</span>
               <span class="unit">/ {{ product.unit }}</span>
             </div>
-            <button @click="openPurchaseModal(product)" class="btn-buy" :disabled="product.stock <= 0">
-              {{ product.stock > 0 ? '🛒 Comprar' : 'Agotado' }}
+            <div v-if="product.stock > 0" class="add-to-cart-wrapper">
+              <input 
+                type="number"
+                v-model="product.selectedQuantity"
+                min="1"
+                :max="product.stock"
+                placeholder="1"
+                class="qty-inline-input"
+              >
+              <!-- Por qué en el botón en el parámetro pones '|| 1' ? -->
+               <!-- Es porque un producto no se crea con esta propiedad en la base de datos, por
+                lo que si se trata de añadir directamente un producto nada mas se entra a la página 
+                no hará nada-->
+              <button @click="cartStore.addToCart(product, product.selectedQuantity || 1)" class="btn-buy">
+                Añadir
+              </button>
+            </div>
+            <button v-else class="btn-buy" disabled>
+              Agotado
             </button>
           </div>
         </div>
@@ -278,4 +300,22 @@ const confirmPurchase = async () => {
 .btn-cancel { background: #e74c3c; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; }
 .btn-confirm { background: #3490dc; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; }
 .btn-confirm:disabled { background: #a0aec0; cursor: not-allowed; }
+
+/* Nuevo CSS para el carrito en línea */
+.add-to-cart-wrapper {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+}
+.qty-inline-input {
+    width: 60px;
+    text-align: center;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    font-size: 1.1em;
+}
+.add-to-cart-wrapper .btn-buy {
+    margin-top: 0; /* Quitamos el margen para que alinee con el input */
+    flex: 1; /* Hace que el botón ocupe el resto del espacio */
+}
 </style>
