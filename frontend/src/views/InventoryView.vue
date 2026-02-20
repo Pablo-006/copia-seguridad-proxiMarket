@@ -223,8 +223,6 @@ onMounted(() => {
                                 <img v-if="imagePreview" :src="imagePreview" alt="Vista previa">
                                 <img v-else-if="form.current_image" :src="form.current_image.startsWith('http') ? form.current_image : img_url + form.current_image" alt="Imagen actual">
                             </div>
-
-
                         </div>
 
                         <div class="modal-actions">
