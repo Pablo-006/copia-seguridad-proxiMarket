@@ -1,10 +1,13 @@
 <script setup>
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { useCartStore } from '@/stores/cart';
-
 const router = useRouter();
+import { useCartStore } from '@/stores/cart';
 const cartStore = useCartStore();
+import { useAuthStore } from '@/stores/auth';
+const authStore = useAuthStore();
+
+const img_url = 'http://localhost:8000/storage/';
 
 const isCartOpen = ref(false);
 
@@ -61,27 +64,27 @@ const goToCheckout = () => {
         </div>
 
         <div class="user-zone">
-          <template v-if="isLoggedIn">
+          <div v-if="authStore.isLogged">
             <router-link to="/perfil" class="profile-pill">
-              <span class="user-name">{{ userData ? userData.name : 'Mi Perfil' }}</span>
+              <span class="user-name">{{ authStore.user.name }}</span>
               
               <img 
-                v-if="userData && userData.avatar_url" 
-                :src="userData.avatar_url.startsWith('http') ? userData.avatar_url : BASE_URL + userData.avatar_url" 
+                v-if="authStore.user.avatar_url" 
+                :src="authStore.user.avatar_url.startsWith('http') ? authStore.user.avatar_url : img_url + authStore.user.avatar_url" 
                 class="avatar-circle-img" 
                 alt="Avatar"
               >
               <div v-else class="avatar-circle">
-                {{ userData ? userData.name.charAt(0).toUpperCase() : 'U' }}
+                {{ authStore.user.name.charAt(0).toUpperCase() }}
               </div>
             </router-link>
-          </template>
-          <template v-else>
+          </div>
+          <div v-else>
             <div class="auth-buttons">
                 <router-link to="/login" class="login-link">Entrar</router-link>
                 <router-link to="/register" class="register-btn">Crear Cuenta</router-link>
             </div>
-          </template>
+          </div>
         </div>
       </div>
     </header>

@@ -1,5 +1,7 @@
 <script setup>
 import { ref } from 'vue';
+import { useRouter } from 'vue-router';
+const router = useRouter();
 import { useAuthStore } from '@/stores/auth';
 const authStore = useAuthStore();
 
@@ -7,9 +9,20 @@ const authStore = useAuthStore();
 // En lugar de crearlas por separado, se engloban dentro de una constante
 // para hacer más fácil su envío a Laravel
 const form = ref({ email: '', password: '' });
+const submitting = ref(false);
 
 const handleLogin = async () => {
+  submitting.value = true;
+
   await authStore.login(form.value);
+
+  if(authStore.error){
+    submitting.value = false;
+    return;
+  }
+
+  submitting.value = false;
+  router.push('/');
 };
 </script>
 
@@ -34,8 +47,10 @@ const handleLogin = async () => {
         <p v-if="authStore.error" style="color: #DC2626; text-align: center; margin-bottom: 1rem;">
             {{ authStore.error }}
         </p>
-
-        <button type="submit" class="submit-btn">Entrar</button>
+        
+        <button type="submit" :disabled="submitting" class="submit-btn">
+          {{submitting ? "Iniciando..." : "Iniciar sesión"}}
+        </button>
       </form>
 
       <div class="auth-footer">

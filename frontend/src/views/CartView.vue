@@ -2,8 +2,8 @@
 import { onMounted, ref } from 'vue';
 import api from '@/api/axios';
 import { useRouter } from 'vue-router';
+const router = useRouter();
 import { useCartStore } from '@/stores/cart';
-import router from '@/router';
 const cartStore = useCartStore();
 
 const pickupPoints = ref([]);
