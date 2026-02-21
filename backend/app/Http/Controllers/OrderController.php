@@ -11,59 +11,7 @@ use Illuminate\Support\Facades\DB;
 
 class OrderController extends Controller
 {
-    // 🛒 1. FUNCIÓN PARA COMPRAR
-    public function store(Request $request)
-    {
-        // 1. Validamos datos de entrada
-        $request->validate([
-            'product_id' => 'required|exists:products,id',
-            'quantity'   => 'required|integer|min:1',
-            'pickup_id'  => 'required|exists:pickup_points,id' // Obligatorio Sprint 4
-        ]);
-
-        // 2. Buscamos el producto
-        $product = Product::findOrFail($request->product_id);
-
-        // 3. Calculamos total_pricees
-        $total_price = $product->price * $request->quantity;
-        $sellerId = $product->seller_id; 
-
-        // 4. Guardamos todo dentro de una transacción (si falla algo, no se guarda nada)
-        return DB::transaction(function () use ($request, $product, $total_price, $sellerId) {
-            
-            // A. CREAR CABECERA DEL PEDIDO (Tabla 'orders')
-            // Nota: Asegúrate de que en tu BD la columna sea 'total_price'. 
-            // Usamos 'total_price' basándonos en la última migración corregida.
-            $order = Order::create([
-                'buyer_id'  => Auth::id(),
-                'seller_id' => $sellerId,
-                'pickup_id' => $request->pickup_id,
-                'status'    => 'pending',
-                'total_price'     => $total_price, 
-            ]);
-
-            // B. CREAR LÍNEA DE PEDIDO (Tabla 'order_lines')
-            // Aquí usamos los nombres EXACTOS de tu modelo OrderLine
-            OrderLine::create([
-                'order_id'         => $order->id,
-                'product_id'       => $product->id,
-                'quantity'         => $request->quantity,
-                
-                // CORRECCIÓN 1: Usamos el nombre correcto de tu modelo
-                'price_at_moment'  => $product->price, 
-                
-                // CORRECCIÓN 2: Campo obligatorio en tu BD. Ponemos 1.0 por defecto.
-                'weight_at_moment' => 1.0, 
-                
-                // 'real_weight' lo dejamos null de momento
-            ]);
-
-            return response()->json([
-                'message' => '¡Pedido realizado correctamente! 🎉',
-                'order'   => $order
-            ], 201);
-        });
-    }
+    
 
     // 📦 2. HISTORIAL DE PEDIDOS
     public function myOrders()
@@ -76,9 +24,7 @@ class OrderController extends Controller
         return response()->json($orders);
     }
 
-    // Renombrar luego a store, no quiero tocar la función store actual
-    // (aunque ya no puede funcionar)
-    public function crearPedido(Request $request){
+    public function store(Request $request){
         $validated = $request->validate([
             'items' => 'required|array',
             'pickup_point_id' => 'required|exists:pickup_points,id',
@@ -135,8 +81,8 @@ class OrderController extends Controller
                     'order_id' => $pedido->id,
                     'product_id' => $item['id'],
                     'quantity' => $item['quantity'],
-                    'weight_at_moment' => ($producto->estimated_weight * $producto->quantity),
-                    'price_at_moment' => ($producto->quantity * $producto->price)
+                    'weight_at_moment' => ($producto->estimated_weight * $item['quantity']),
+                    'price_at_moment' => ($item['quantity'] * $producto->price)
                 ]);
 
                 $producto->decrement('stock', $item['quantity']);

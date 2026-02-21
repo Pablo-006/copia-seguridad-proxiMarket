@@ -51,6 +51,12 @@ const router = createRouter({
       name: 'marketplace',
       component: () => import('../views/MarketplaceView.vue')
     },
+
+    {
+      path: '/carrito',
+      name: 'carrito',
+      component: () => import('../views/CartView.vue')
+    },
     
     // --- 📦 MIS PEDIDOS (SPRINT 4 - TUS CAMBIOS) ---
     {

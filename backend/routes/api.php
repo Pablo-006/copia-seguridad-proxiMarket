@@ -59,9 +59,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
 
     // --- 🛍️ COMPRAS (COMPRADOR) ---
-    Route::post('/orders', [OrderController::class, 'store']);       
     Route::get('/my-orders', [OrderController::class, 'myOrders']);  
-
+    Route::post('/orders/store', [OrderController::class, 'store']);       
 
     // --- 📍 PUNTOS DE RECOGIDA (VENDEDOR) ---
     Route::get('/seller/pickup-points', [PickupPointController::class, 'index']);
