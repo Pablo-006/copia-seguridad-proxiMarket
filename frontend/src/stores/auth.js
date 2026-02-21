@@ -27,7 +27,7 @@ export const useAuthStore = defineStore('auth', {
 
     getters: {
         isLogged(state){
-            return state.token !== null;
+            return state.token !== null && state.user !== null;
         }
     },
 
@@ -79,7 +79,20 @@ export const useAuthStore = defineStore('auth', {
             }
         },
         async fetchUser(){
-            
+            const savedToken = localStorage.getItem('auth_token');
+
+            if(savedToken){
+                this.token = savedToken;
+
+                try{
+                    const response = await api.get('/user');
+                    this.user = response.data;
+                }catch(e){
+                    this.token = null;
+                    this.user = null;
+                    localStorage.removeItem('auth_token');
+                }
+            }
         }
     }
 });

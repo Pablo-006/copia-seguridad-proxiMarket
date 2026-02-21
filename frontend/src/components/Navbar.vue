@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue';
+import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 const router = useRouter();
 import { useCartStore } from '@/stores/cart';
@@ -19,6 +19,10 @@ const goToCheckout = () => {
     isCartOpen.value = false;
     router.push('/carrito');
 };
+
+onMounted(() =>{
+  authStore.fetchUser();
+});
 </script>
 
 <template>
