@@ -2,8 +2,6 @@
 import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import api from '@/api/axios'; 
-import { useCartStore } from '@/stores/cart';
-const cartStore = useCartStore();
 
 const img_url = 'http://localhost:8000/storage/';
 
@@ -110,19 +108,16 @@ const confirmPurchase = async () => {
     submitting.value = true;
 
     try {
-        // RUTA: Route::post('/seller/orders/{id}/store', ...)
-        // Aquí {id} es el ID del PRODUCTO que estamos comprando.
-        const productId = selectedProduct.value.id;
-
-        await api.post(`/seller/orders/${productId}/store`, {
-            // Ya no enviamos product_id en el cuerpo porque va en la URL
+        // Cambiamos la ruta a la estándar y enviamos el product_id en el cuerpo
+        await api.post(`/orders/store`, {
+            product_id: selectedProduct.value.id,
             quantity: selectedQuantity.value,
-            pickup_id: selectedPickupId.value
+            pickup_point_id: selectedPickupId.value
         });
-        
+
         alert("¡Pedido realizado con éxito! 🎉");
         closeModal();
-        router.push('/my-purchases'); // Redirigir a "Mis Compras"
+        router.push('/my-purchases'); 
 
     } catch (error) {
         console.error(error);
@@ -137,9 +132,6 @@ const confirmPurchase = async () => {
   <div class="marketplace-container">
     <h2 class="title">🍏 Mercado de Proximidad</h2>
     <p class="subtitle">Productos frescos directos del agricultor a tu mesa.</p>
-    <div style="background: #ffeaa7; padding: 10px; text-align: center; border-radius: 5px; margin-bottom: 20px;">
-      <p><strong>Chivato Temporal: </strong> Tienes {{ cartStore.totalItems }} en el carrito. Total: {{ cartStore.totalPrice }}€</p>
-    </div>
 
     <div class="filters-wrapper">
       <div class="search-box">
@@ -185,12 +177,8 @@ const confirmPurchase = async () => {
                 placeholder="1"
                 class="qty-inline-input"
               >
-              <!-- Por qué en el botón en el parámetro pones '|| 1' ? -->
-               <!-- Es porque un producto no se crea con esta propiedad en la base de datos, por
-                lo que si se trata de añadir directamente un producto nada mas se entra a la página 
-                no hará nada-->
-              <button @click="cartStore.addToCart(product, product.selectedQuantity || 1)" class="btn-buy">
-                Añadir
+              <button @click="openPurchaseModal(product)" class="btn-buy">
+                Reservar Producto
               </button>
             </div>
             <button v-else class="btn-buy" disabled>

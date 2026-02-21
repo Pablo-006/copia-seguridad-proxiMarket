@@ -2,18 +2,10 @@
 import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 const router = useRouter();
-import { useCartStore } from '@/stores/cart';
-const cartStore = useCartStore();
 import { useAuthStore } from '@/stores/auth';
 const authStore = useAuthStore();
 
 const img_url = 'http://localhost:8000/storage/';
-
-const isCartOpen = ref(false);
-
-const toggleCart = () => {
-    isCartOpen.value = !isCartOpen.value;
-};
 
 const goToCheckout = () => {
     isCartOpen.value = false;
@@ -37,34 +29,6 @@ onMounted(() =>{
 
         <div class="logo-container">
           <h1 class="site-title">Proxi<span class="highlight">Markt</span></h1>
-        </div>
-
-        <div class="cart-wrapper">
-            <button @click="toggleCart" class="nav-cart-btn">
-                🛒 <span v-if="cartStore.totalItems > 0" class="badge">{{ cartStore.totalItems }}</span>
-            </button>
-
-            <div v-if="isCartOpen" class="cart-dropdown">
-                <div v-if="cartStore.isEmpty" class="empty-msg">
-                    Tu cesta está vacía
-                </div>
-
-                <div v-else>
-                    <div class="mini-items-list">
-                        <div v-for="item in cartStore.items" :key="item.id" class="mini-item">
-                            <span class="qty">{{ item.quantity }}x</span>
-                            <span class="name">{{ item.title }}</span>
-                            <span class="price">{{ (item.price * item.quantity).toFixed(2) }}€</span>
-                            <button @click="cartStore.removeFromCart(item.id)" class="btn-delete">Eliminar</button>
-                        </div>
-                    </div>
-
-                    <div class="dropdown-footer">
-                        <p>Total: <strong>{{ cartStore.totalPrice }}€</strong></p>
-                        <button @click="goToCheckout" class="btn-checkout">Ir a pagar</button>
-                    </div>
-                </div>
-            </div>
         </div>
 
         <div class="user-zone">
