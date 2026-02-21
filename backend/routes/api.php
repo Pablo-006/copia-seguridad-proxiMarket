@@ -12,6 +12,7 @@ use App\Http\Controllers\PickupPointController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\GameTestController;
 use App\Http\Controllers\ReviewController; // ⬅️ NUEVO: Importar el controlador
+use App\Http\Controllers\NotificationController;
 
 /*
 |--------------------------------------------------------------------------
@@ -96,9 +97,13 @@ Route::middleware('auth:sanctum')->group(function () {
     // --- ⭐ SISTEMA DE RESEÑAS (NUEVO) --- ⬅️ AQUÍ ESTÁN LAS RUTAS NUEVAS
     // Crear una reseña para un pedido específico
     Route::post('/orders/{id}/reviews', [ReviewController::class, 'store']);
+    Route::put('/orders/{id}/reviews', [ReviewController::class, 'update']);
     
     // (Opcional) Ver las reseñas de un usuario específico de forma aislada
     // Nota: Aunque ya salen en el perfil de usuario con la modificación anterior, esta ruta es útil si quieres paginarlas aparte.
     Route::get('/users/{id}/reviews', [ReviewController::class, 'getUserReviews']);
 
+    // --- 🔔 NOTIFICACIONES ---
+    Route::get('/notifications', [NotificationController::class, 'index']);
+    Route::put('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
 });

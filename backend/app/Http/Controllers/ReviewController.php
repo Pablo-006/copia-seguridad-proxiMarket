@@ -76,4 +76,25 @@ class ReviewController extends Controller
 
         return response()->json($reviewsReceived);
     }
+
+        public function update(Request $request, $orderId)
+    {
+        $validated = $request->validate([
+            'rating' => 'required|integer|min:1|max:5',
+            'comment' => 'nullable|string|max:1000', 
+        ]);
+
+        $userId = Auth::id();
+
+        $review = Review::where('order_id', $orderId)
+                        ->where('author_id', $userId)
+                        ->firstOrFail();
+
+        $review->update([
+            'rating' => $validated['rating'],
+            'comment' => $validated['comment'] ?? null,
+        ]);
+
+        return response()->json(['message' => 'Valoración actualizada correctamente', 'review' => $review]);
+    }
 }
