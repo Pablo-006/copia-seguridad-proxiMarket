@@ -41,34 +41,6 @@ const resetFilters = () => {
     maxPrice.value = maxPriceLimit.value; 
 };
 
-// --- CARGA INICIAL ---
-onMounted(async () => {
-  try {
-    // 1. Obtener mi ID para filtrar mis productos
-    const userResponse = await api.get('/user');
-    currentUserId.value = userResponse.data.id;
-
-    // 2. Obtener productos
-    const response = await api.get('/products');
-    
-    // 3. Filtrar: Mostrar solo productos que NO sean míos
-    // Asegúrate de que tu API de productos devuelve 'seller_id'
-    products.value = response.data.filter(product => product.seller_id !== currentUserId.value);
-
-    // 4. Calcular precio máximo
-    if (products.value.length > 0) {
-        const highest = Math.max(...products.value.map(p => parseFloat(p.price)));
-        maxPriceLimit.value = Math.ceil(highest); 
-        maxPrice.value = maxPriceLimit.value;     
-    }
-
-  } catch (error) {
-    console.error("Error cargando datos:", error);
-  } finally {
-    loading.value = false;
-  }
-});
-
 // --- ABRIR MODAL ---
 const openPurchaseModal = async (product) => {
     // Verificación simple de sesión (opcional si ya controlas rutas)
@@ -126,6 +98,33 @@ const confirmPurchase = async () => {
         submitting.value = false;
     }
 };
+
+onMounted(async () => {
+  try {
+    // 1. Obtener mi ID para filtrar mis productos
+    const userResponse = await api.get('/user');
+    currentUserId.value = userResponse.data.id;
+
+    // 2. Obtener productos
+    const response = await api.get('/products');
+    
+    // 3. Filtrar: Mostrar solo productos que NO sean míos
+    // Asegúrate de que tu API de productos devuelve 'seller_id'
+    products.value = response.data.filter(product => product.seller_id !== currentUserId.value);
+
+    // 4. Calcular precio máximo
+    if (products.value.length > 0) {
+        const highest = Math.max(...products.value.map(p => parseFloat(p.price)));
+        maxPriceLimit.value = Math.ceil(highest); 
+        maxPrice.value = maxPriceLimit.value;     
+    }
+
+  } catch (error) {
+    console.error("Error cargando datos:", error);
+  } finally {
+    loading.value = false;
+  }
+});
 </script>
 
 <template>
