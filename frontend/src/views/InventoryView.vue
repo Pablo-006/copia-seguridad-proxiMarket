@@ -22,7 +22,8 @@ const previewImage = ref(null);
 
 // IMPORTANTE: Asegúrate de que esto coincide con tu dominio de Laravel
 // Si estás en local suele ser: http://localhost:8000/storage/
-const BASE_URL = 'http://localhost:8000/storage/';
+// Para el despliegue la ruta es https://proximarkt-proyecto.azurewebsites.net/storage/
+const BASE_URL = 'https://proximarkt-proyecto.azurewebsites.net/storage/';
 
 onMounted(() => {
     loadProducts();

@@ -7,7 +7,7 @@ import { useToast } from 'vue-toastification';
 
 const router = useRouter();
 const toast = useToast();
-const BASE_URL = 'http://localhost:8000/storage/';
+const BASE_URL = 'https://proximarkt-proyecto.azurewebsites.net/storage/';
 
 const user = ref(null);
 const loading = ref(true);
