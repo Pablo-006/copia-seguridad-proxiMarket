@@ -13,16 +13,18 @@ const submitting = ref(false);
 
 const handleLogin = async () => {
   submitting.value = true;
+  // En el store, como se hace un throw, es necesario poner también un try catch
+  // en la vista para que el error no se salga de control
+  try{
+    await authStore.login(form.value);
 
-  await authStore.login(form.value);
+    router.push('/');
+  }catch(e){
 
-  if(authStore.error){
+  }finally{
     submitting.value = false;
-    return;
   }
 
-  submitting.value = false;
-  router.push('/');
 };
 </script>
 

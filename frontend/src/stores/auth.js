@@ -13,20 +13,21 @@ export const useAuthStore = defineStore('auth', {
         error: ''
     }),
 
-    // 2. GETTERS - aunque no hay getters en este store ya que no son necesarios 
-    // (en caso de serlo más adelante, actualizaré este comentario), daré una vista
-    // de lo que son (hay un ejemplo en el store de cart.js). Los getters son funciones
-    // que se comportan de la misma manera que las funciones computed. Cuando una variable cambia su
-    // valor, estado, etc... estas funciones se ejecutan automáticamente mostrando así el cambio en la vista
-    // donde se apliquen sin necesidad de recargar página. El uso que pueden tener los getters es principalmente para
+    // 2. GETTERS - Los getters son funciones que se comportan de la misma manera que las funciones computed. 
+    // Cuando una variable cambia su valor, estado, etc... estas funciones se ejecutan automáticamente 
+    // mostrando así el cambio en la vista donde se apliquen sin necesidad de recargar página. 
+    // El uso que pueden tener los getters es principalmente para
     // hacer cálculos (precio, cantidad de items en una lista, etc), hacer nuevas variables
     // a partir de las existentes para mostrar un determinado cambio (como es el caso de los filtros, que no actualizan una lista
     // sino que crean una nueva con los productos que coinciden con el filtro) y por último, hacer validaciones rápidas
     // como comprobar si una lista esta llena o vacía, o si una variable booleana es verdadera o falsa 
-    // [PARA MÁS EJEMPLOS, CONSULTAR EL CART.JS]
 
     getters: {
         isLogged(state){
+            // Se verifica que tanto el token como el usuario tengan valor, ya que si falla uno de los dos
+            // el usuario no estaría totalmente verificado (si la variable user está null, luego en la vista
+            // no se puede mostrar el nombre del usuario, ya que tarda unos segundos en obtener la info y no es instantáneo
+            // como el token)
             return state.token !== null && state.user !== null;
         }
     },
@@ -58,11 +59,26 @@ export const useAuthStore = defineStore('auth', {
                 // Luego de iniciar sesión, se redirecciona al usuario a la página de inicio
                 // (No se supone que las redirecciones se hacen siempre en las vistas y nunca en los store?)
                 
-                return true; // Éxito
             } catch (e) {
-                this.error = e.response?.data?.message || "Error al iniciar sesión"
+                this.error = e.response?.data?.message || "Error al iniciar sesión";
+                // El throw sirve para cortar la ejecución de la función de la vista que llama a esta función. De esta manera todo lo que sigue 
+                // a la ejecución de esta función, no se realiza
+                throw e;
+            }
+        },
+        async register(form){
+            this.error = '';
 
-                return false; // Fallo
+            try{
+                const response = await api.post('/register', form);
+
+                localStorage.setItem('auth_token', response.data.access_token);
+                this.user = response.data.user;
+                this.token = response.data.access_token;
+            }catch(e){
+                this.error = "Credenciales incorrectas";
+                console.log(this.error);
+                throw e;
             }
         },
         async logout(){

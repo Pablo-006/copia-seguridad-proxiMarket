@@ -7,11 +7,6 @@ const authStore = useAuthStore();
 
 const img_url = 'http://localhost:8000/storage/';
 
-const goToCheckout = () => {
-    isCartOpen.value = false;
-    router.push('/carrito');
-};
-
 onMounted(() =>{
   authStore.fetchUser();
 });
@@ -75,94 +70,6 @@ onMounted(() =>{
 .login-link { text-decoration: none; color: #64748b; font-weight: 600; }
 .register-btn { background-color: #3b82f6; color: white; padding: 8px 16px; border-radius: 20px; text-decoration: none; font-weight: 600; transition: background 0.2s; }
 .register-btn:hover { background-color: #2563eb; }
-
-/* Posicionamiento del carrito */
-.cart-wrapper {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.nav-cart-btn {
-  background: none;
-  border: none;
-  font-size: 1.2rem;
-  cursor: pointer;
-  padding: 5px 10px;
-}
-
-.badge {
-  background-color: #e74c3c;
-  color: white;
-  border-radius: 50%;
-  padding: 2px 6px;
-  font-size: 0.8rem;
-  font-weight: bold;
-  vertical-align: top;
-  margin-left: 2px;
-}
-
-/* El cuadro desplegable */
-.cart-dropdown {
-  position: absolute;
-  top: 100%; /* Justo debajo del botón */
-  right: 0;  /* Alineado a la derecha */
-  width: 280px;
-  background: white;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-  padding: 15px;
-  z-index: 1000;
-  color: #333;
-}
-
-.mini-items-list {
-  max-height: 200px;
-  overflow-y: auto;
-}
-
-.mini-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-bottom: 1px solid #eee;
-  padding: 8px 0;
-  font-size: 0.9rem;
-}
-
-.mini-item .name {
-  flex: 1;
-  margin: 0 10px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.btn-delete {
-  background: none;
-  border: none;
-  cursor: pointer;
-}
-
-.dropdown-footer {
-  margin-top: 15px;
-  border-top: 2px solid #eee;
-  padding-top: 10px;
-  text-align: center;
-}
-
-.btn-checkout {
-  width: 100%;
-  background: #27ae60;
-  color: white;
-  border: none;
-  padding: 10px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: bold;
-  margin-top: 10px;
-}
 
 .profile-pill { display: flex; align-items: center; gap: 10px; background: #f1f5f9; padding: 5px 10px 5px 15px; border-radius: 30px; text-decoration: none; color: #334155; font-weight: 600; transition: background 0.2s; }
 .profile-pill:hover { background: #e2e8f0; }

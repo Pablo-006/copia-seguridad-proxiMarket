@@ -51,12 +51,6 @@ const router = createRouter({
       name: 'marketplace',
       component: () => import('../views/MarketplaceView.vue')
     },
-
-    {
-      path: '/carrito',
-      name: 'carrito',
-      component: () => import('../views/CartView.vue')
-    },
     
     // --- 📦 MIS PEDIDOS (SPRINT 4 - TUS CAMBIOS) ---
     {
@@ -110,12 +104,12 @@ const router = createRouter({
 
 // GUARDIA GLOBAL (Opcional, pero recomendado para evitar errores 401)
 router.beforeEach((to, from, next) => {
-    const isAuthenticated = localStorage.getItem('auth_token');
-    if (to.meta.requiresAuth && !isAuthenticated) {
-        next('/login');
-    } else {
-        next();
-    }
+  const isAuthenticated = localStorage.getItem('auth_token');
+  if (to.meta.requiresAuth && !isAuthenticated) {
+      next('/login');
+  } else {
+      next();
+  }
 });
 
 export default router
