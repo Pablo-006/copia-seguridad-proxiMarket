@@ -43,13 +43,6 @@ const resetFilters = () => {
 
 // --- ABRIR MODAL ---
 const openPurchaseModal = async (product) => {
-    // Verificación simple de sesión (opcional si ya controlas rutas)
-    const token = localStorage.getItem('auth_token');
-    if (!token) {
-        if(confirm("Necesitas iniciar sesión. ¿Ir al Login?")) router.push('/login');
-        return;
-    }
-
     selectedProduct.value = product;
     selectedQuantity.value = 1;
     selectedPickupId.value = null;
@@ -114,7 +107,18 @@ onMounted(async () => {
 
     // 4. Calcular precio máximo
     if (products.value.length > 0) {
+      // Al tratar con matemáticas, la lógica se ejecuta desde lo de más dentro 
+      // hasta lo de fuera. Primero se realiza la función map, donde por cada producto
+      // de la lista, se convierte a decimal el precio de los productos. Luego de eso,
+      // se obtiene un array con los precios de cada producto. Como Math.max no puede tratar con
+      // arrays, se usan los tres puntos (...) para quitarle los corchetes al array y así
+      // Math.max puede obtener el máximo
         const highest = Math.max(...products.value.map(p => parseFloat(p.price)));
+
+        // Con Math.ceil se hacen aproximaciones con decimales hacia arriba, por muy 
+        // pequeño que sea el decimal. Se usa ya que si se hiciera una aproximación corriente
+        // aquellos productos con un valor decimal por ejemplo de .20, estarían fuera del 
+        // alcance del filtro
         maxPriceLimit.value = Math.ceil(highest); 
         maxPrice.value = maxPriceLimit.value;     
     }
@@ -156,26 +160,18 @@ onMounted(async () => {
       <div v-else class="products-grid">
         <div v-for="product in filteredProducts" :key="product.id" class="product-card">
           <div class="image-container">
-             <img :src="product.image_url ? product.image_url.startsWith('http') ? product.image_url : img_url + product.image_url : 'https://placehold.co/300x200?text=Producto+Local'" alt="Producto" class="product-img">
+             <img :src="product.image_url ? product.image_url.startsWith('http') ? product.image_url : img_url + product.image_url : 'public/no-disponible.jpg'" alt="Producto" class="product-img">
              <span class="stock-badge" v-if="product.stock > 0">Stock: {{ product.stock }}</span>
              <span class="stock-badge no-stock" v-else>Agotado</span>
           </div>
           <div class="card-body">
             <h3>{{ product.title }}</h3>
-            <p class="seller-name">👨‍🌾 {{ product.seller?.name || 'Vendedor Local' }}</p>
+            <p class="seller-name"> {{ product.seller.store_name }}</p>
             <div class="price-row">
-              <span class="price" :class="{'highlight-price': product.price <= maxPrice}">{{ product.price }}€</span>
+              <span class="price highlight-price">{{ product.price }}€</span>
               <span class="unit">/ {{ product.unit }}</span>
             </div>
-            <div v-if="product.stock > 0" class="add-to-cart-wrapper">
-              <input 
-                type="number"
-                v-model="product.selectedQuantity"
-                min="1"
-                :max="product.stock"
-                placeholder="1"
-                class="qty-inline-input"
-              >
+            <div v-if="product.stock > 0" >
               <button @click="openPurchaseModal(product)" class="btn-buy">
                 Reservar Producto
               </button>
