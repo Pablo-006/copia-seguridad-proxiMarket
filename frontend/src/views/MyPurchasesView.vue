@@ -8,18 +8,6 @@ const orders = ref([]);
 const loading = ref(true);
 const activeTab = ref('new'); // Pestaña activa por defecto
 
-// --- CARGA DE DATOS ---
-onMounted(async () => {
-  try {
-    const response = await api.get('/my-orders');
-    orders.value = response.data;
-  } catch (error) {
-    console.error("Error al cargar pedidos:", error);
-  } finally {
-    loading.value = false;
-  }
-});
-
 // --- COMPUTED: FILTRADO POR PESTAÑAS ---
 const filteredOrders = computed(() => {
     switch (activeTab.value) {
@@ -77,32 +65,44 @@ const formatDate = (dateString) => {
         day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute:'2-digit' 
     });
 };
+
+// --- CARGA DE DATOS ---
+onMounted(async () => {
+  try {
+    const response = await api.get('/my-orders');
+    orders.value = response.data;
+  } catch (error) {
+    console.error("Error al cargar pedidos:", error);
+  } finally {
+    loading.value = false;
+  }
+});
 </script>
 
 <template>
   <div class="purchases-container">
     
     <div class="header-row">
-        <button @click="router.push('/')" class="btn-home">🏠 Inicio</button>
-        <h2 class="page-title">🛍️ Mis Compras</h2>
+        <button @click="router.push('/')" class="btn-home">Inicio</button>
+        <h2 class="page-title"> Mis Compras</h2>
         <div style="width: 80px;"></div>
     </div>
 
     <div class="tabs">
         <button :class="{ active: activeTab === 'new' }" @click="activeTab = 'new'">
-            ⏳ Por Aceptar
+            Por Aceptar
         </button>
         
         <button :class="{ active: activeTab === 'processing' }" @click="activeTab = 'processing'">
-            ⚖️ En Preparación
+            En Preparación
         </button>
         
         <button :class="{ active: activeTab === 'ready' }" @click="activeTab = 'ready'">
-            📦 Listos
+            Listos
         </button>
         
         <button :class="{ active: activeTab === 'history' }" @click="activeTab = 'history'">
-            📜 Historial
+            Historial
         </button>
     </div>
 

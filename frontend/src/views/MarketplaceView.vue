@@ -26,6 +26,8 @@ const maxPriceLimit = ref(100);
 // ID del usuario actual (Para no mostrar mis propios productos)
 const currentUserId = ref(null);
 
+const error = ref('');
+
 // --- COMPUTED: FILTRADO ---
 const filteredProducts = computed(() => {
   return products.value.filter(product => {
@@ -43,23 +45,31 @@ const resetFilters = () => {
 
 // --- ABRIR MODAL ---
 const openPurchaseModal = async (product) => {
-    selectedProduct.value = product;
-    selectedQuantity.value = 1;
-    selectedPickupId.value = null;
-    showModal.value = true;
-    loadingPoints.value = true; 
-    pickupPoints.value = [];    
+  error.value = '';
+  selectedProduct.value = product;
+  selectedQuantity.value = 1;
+  selectedPickupId.value = null;
+  showModal.value = true;
+  loadingPoints.value = true; 
+  pickupPoints.value = [];    
 
-    try {
-        // Cargar puntos de recogida del vendedor
-        const sellerId = product.seller_id || product.seller?.id; 
-        const response = await api.get(`/seller/pickup-points/${sellerId}`);
-        pickupPoints.value = response.data;
-    } catch (error) {
-        console.error("Error cargando puntos:", error);
-    } finally {
-        loadingPoints.value = false;
-    }
+  try {
+      // Cargar puntos de recogida del vendedor
+      // La manera de obtener el id del vendedor así, es debido a la forma
+      // en que se devuelva el producto desde el servidor. Si en el servidor
+      // devolvemos el producto con sus respectivos datos, obtendremos el id
+      // de la primera forma. Pero si por lo que sea se decide devolver
+      // el producto sin sus datos para no ensuciar la respuesta y traemos con él
+      // los datos del vendedor, querremos entonces la segunda forma. Además, en
+      // la segunda forma se añade el '?' para que en caso de error, no estalle la web
+      const sellerId = product.seller_id || product.seller?.id; 
+      const response = await api.get(`/seller/pickup-points/${sellerId}`);
+      pickupPoints.value = response.data;
+  } catch (error) {
+      console.error("Error cargando puntos:", error);
+  } finally {
+      loadingPoints.value = false;
+  }
 };
 
 const closeModal = () => { 
@@ -70,6 +80,7 @@ const closeModal = () => {
 // --- CONFIRMAR COMPRA (ADAPTADO A TU RUTA) ---
 const confirmPurchase = async () => {
     if (!selectedPickupId.value) return;
+    error.value = '';
     submitting.value = true;
 
     try {
@@ -84,15 +95,16 @@ const confirmPurchase = async () => {
         closeModal();
         router.push('/my-purchases'); 
 
-    } catch (error) {
-        console.error(error);
-        alert(error.response?.data?.message || "Error al realizar el pedido.");
+    } catch (e) {
+        console.error(e);
+        error.value = e.response?.data?.message || "Error al realizar el pedido";
     } finally {
         submitting.value = false;
     }
 };
 
 onMounted(async () => {
+
   try {
     // 1. Obtener mi ID para filtrar mis productos
     const userResponse = await api.get('/user');
@@ -123,8 +135,8 @@ onMounted(async () => {
         maxPrice.value = maxPriceLimit.value;     
     }
 
-  } catch (error) {
-    console.error("Error cargando datos:", error);
+  } catch (e) {
+    console.error("Error cargando datos:", e);
   } finally {
     loading.value = false;
   }
@@ -133,7 +145,7 @@ onMounted(async () => {
 
 <template>
   <div class="marketplace-container">
-    <h2 class="title">🍏 Mercado de Proximidad</h2>
+    <h2 class="title">Mercado de Proximidad</h2>
     <p class="subtitle">Productos frescos directos del agricultor a tu mesa.</p>
 
     <div class="filters-wrapper">
@@ -189,6 +201,8 @@ onMounted(async () => {
            <h3>📍 Elige dónde recogerlo</h3>
            <p>Estás comprando: <strong>{{ selectedProduct?.title }}</strong></p>
 
+           <p v-if="error" style="color: red;">{{ error }}</p>
+
            <div class="quantity-section">
                <label>Cantidad ({{ selectedProduct?.unit }}):</label>
                <div class="qty-control">
@@ -206,7 +220,6 @@ onMounted(async () => {
 
                <div v-else-if="pickupPoints.length === 0" class="no-points">
                    <p>⚠️ Este vendedor no tiene puntos configurados.</p>
-                   <small>Contacta con él por el chat tras comprar.</small>
                </div>
 
                <div v-else class="points-list">

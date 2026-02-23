@@ -12,53 +12,28 @@ use App\Models\Product;
 
 class SellerOrderController extends Controller
 {
-    // FUNCIONES PARA OBTENER PEDIDOS
-    public function getNew(){
+    public function index(Request $request){
         $sellerId = Auth::id();
 
-        $orders = $this->findAllOrders($sellerId, ['new']);
+        // Esta variable se crea para almacenar en ella la consulta (query) que se va a realizar
+        // a la base de datos. Según la info que obtengamos del frontend, se modificará de una
+        // manera o de otra para luego finalmente hacer el get()
+        $query = Order::with('buyer', 'lines.product')->where('seller_id', $sellerId);
 
-        //Se añade $this para indicar que la funcion formatOrders está en esta misma clase y 
-        // Laravel no busque por todo el proyecto una función con este nombre
-        $formattedOrders = $this->formatOrders($orders);
+        if($request->has('statuses')){
+            // La función explode lo que hace es generar un array cortando por el separador
+            // designado en la función (en este caso, la coma). La función query lo que hace
+            // es obtener el 'query' de la url que nos devuelve el frontend.
+            // Un ejemplo sería algo como /seller/orders?statuses=pending,weight_adjusted
+            // Aquí, la función query nos devolvería 'pending,weight_adjusted' y con explode
+            // lo convertimos en ['pending', 'weight_adjusted']
+            $statusArray = explode(',', $request->query('statuses'));
+            $query->whereIn('status', $statusArray);
+        }else{
+            $query->whereNotIn('status', ['completed', 'rejected', 'cancelled']);
+        }
 
-       return response()->json($formattedOrders, 200);
-    }
-
-    public function getPending(){
-        $sellerId = Auth::id();
-
-        $orders = $this->findAllOrders($sellerId, ['pending']);
-
-        $formattedOrders = $this->formatOrders($orders);
-
-       return response()->json($formattedOrders, 200);
-    }
-
-        public function getAdjusted(){
-        $sellerId = Auth::id();
-
-        $orders = $this->findAllOrders($sellerId, ['weight_adjusted']);
-
-        $formattedOrders = $this->formatOrders($orders);
-
-       return response()->json($formattedOrders, 200);
-    }
-
-    public function getReady(){
-        $sellerId = Auth::id();
-
-        $orders = $this->findAllOrders($sellerId, ['ready']);
-
-        $formattedOrders = $this->formatOrders($orders);
-
-       return response()->json($formattedOrders, 200);
-    }
-
-    public function getHistory(){
-        $sellerId = Auth::id();
-
-        $orders = $this->findAllOrders($sellerId, ['completed', 'rejected', 'cancelled']);
+        $orders = $query->get();
 
         $formattedOrders = $this->formatOrders($orders);
 
@@ -69,86 +44,20 @@ class SellerOrderController extends Controller
     // En el frontend se traduce como hacer clic en un pedido y ver los detalles del pedido
     public function show($orderId){
         $sellerId = Auth::id();
-        $allStatuses = ['new', 'pending', 'weight_adjusted', 'ready', 'completed', 'rejected', 'cancelled'];
 
-        $order = $this->findOneOrder($orderId, $sellerId, $allStatuses);
+        $order = Order::where('id', $orderId)->with('buyer', 'lines.product')->firstOrFail();
         $collection = collect([$order]);
 
-        $formattedOrder = $this->formatOrders($collection);
+        $formattedOrder = $this->formatOrders($collection)->first();
 
         return response()->json($formattedOrder, 200);
-    }
-
-// Función para CREAR un pedido nuevo (Comprar)
-    // El $id que recibimos es el del PRODUCTO
-    public function store(Request $request, $id)
-    {
-        // 1. Validar datos
-        $request->validate([
-            'quantity' => 'required|numeric|min:0.01', // Puede ser decimal si son Kilos
-            'pickup_id' => 'required|exists:pickup_points,id'
-        ]);
-
-        // 2. Buscar el PRODUCTO (No el pedido)
-        $product = Product::findOrFail($id);
-
-        // 3. Evitar comprarse a uno mismo
-        if ($product->seller_id === Auth::id()) {
-            return response()->json(['message' => 'No puedes comprar tus propios productos.'], 403);
-        }
-
-        // 4. Verificar Stock
-        if ($product->stock < $request->quantity) {
-            return response()->json(['message' => 'No hay suficiente stock disponible.'], 400);
-        }
-
-        // 5. Crear el Pedido (Usamos Transacción para seguridad)
-        return DB::transaction(function () use ($request, $product) {
-            
-            // A) Crear Cabecera del Pedido
-            $order = new Order();
-            $order->buyer_id = Auth::id();            // El que compra (Usuario logueado)
-            $order->seller_id = $product->seller_id;  // El dueño del producto
-            $order->status = 'new';                   // Estado inicial correcto
-            $order->pickup_id = $request->pickup_id; // Guardamos dónde recogerlo
-            
-            // Calculamos precio total inicial
-            $totalPrice = $product->price * $request->quantity;
-            $order->total_price = $totalPrice;
-            
-            $order->save();
-
-            // B) Crear Línea del Pedido (OrderLine)
-            // Asumiendo que tienes un modelo OrderLine o relación hasMany
-            // Si usas el modelo directo:
-            $line = new \App\Models\OrderLine(); 
-            $line->order_id = $order->id;
-            $line->product_id = $product->id;
-            $line->quantity = $request->quantity; // Cantidad solicitada
-            
-            // Guardamos precio y peso al momento de la compra (congelar precio)
-            $line->price_at_moment = $totalPrice; 
-            
-            // Si es por kg, quizás quieras guardar el peso estimado aquí también
-            $line->weight_at_moment = ($product->unit === 'kg') ? $request->quantity : 0; 
-            
-            $line->save();
-
-            // C) Restar Stock
-            $product->decrement('stock', $request->quantity);
-
-            return response()->json([
-                'message' => 'Pedido realizado con éxito',
-                'order_id' => $order->id
-            ], 201);
-        });
     }
 
     //FUNCIÓN PARA CAMBIAR DE 'NEW' A 'PENDING'
     public function markAsPending($orderId){
         $sellerId = Auth::id();
 
-        $order = $this->findOneOrder($orderId, $sellerId, ['new']);
+        $order = Order::where('id', $orderId)->where('status', 'new')->with('seller', 'lines.product')->firstOrFail();
 
         $order->status = 'pending';
 
@@ -192,7 +101,11 @@ class SellerOrderController extends Controller
         $sellerId = Auth::id();
 
         // Se pretende actualizar aquel pedido que esté pendiente o que ya haya sido editado y se quiera volver a editar.
-        $order = $this->findOneOrder($orderId, $sellerId, ['pending', 'weight_adjusted']);
+        $order = Order::where('id', $orderId)
+                        ->where('seller_id', $sellerId)
+                        ->whereIn('status', ['pending', 'weight_adjusted'])
+                        ->with('lines.product')
+                        ->firstOrFail();
 
         // Con Transaction, nos aseguramos de que en caso de haber un fallo (luz, servidor), los datos no queden incompletos.
         // O se ejecuta toda la función o no se hace nada.
@@ -213,14 +126,26 @@ class SellerOrderController extends Controller
                 $data = $orderLines->firstWhere('id', $line->id);
 
                 // Solo se procesan aquellas líneas del pedido que hayan sido editadas
+                // ¿Cómo sabe el servidor diferenciar de las líneas que han sido modificadas de las que no?:
+                    // 
                 if($data){
+                    // Cuando un cliente realiza un pedido y el vendedor lo acepta, el pedido pasa a pendiente. Pero,
+                    // estos pedidos no tienen un peso real aún, en qué momento se les debería asignar el peso real? O
+                    // pasa algo si los pedidos pendientes no tienen un peso real?
+                        // El peso real se asigna en esta misma función. Al principio, un pedido 'pending'
+                        // no tiene un peso real, y más abajo es donde se le asigna este valor a la base de datos
                     $realWeight = $data['real_weight'];
 
                 // --- BLOQUE 1 CORREGIDO: PRIORIDAD AL PRECIO MANUAL ---
+                // ¿Para qué sirve poder editar el precio por unidad? Si haces un pedido, el precio establecido al hacer la reserva
+                // no se ve afectado por futuros cambios en los precios de los productos
+                    // Sirve para darle una opción al vendedor de hacer un pequeño descuento en el pedido
                     $unitPrice = 0;
 
                     // 1. PRIMERO comprobamos si el frontend nos manda un precio unitario nuevo
                     // (Esto permite corregir el precio si estaba mal calculado)
+                    // ¿Qué hace isset()?
+                        // Comprueba que existe una variable y que además no esté vacía
                     if(isset($data['unit_price']) && $data['unit_price'] > 0) {
                         $unitPrice = $data['unit_price'];
                     }
@@ -235,16 +160,14 @@ class SellerOrderController extends Controller
                     }
                     // 3. Si todo falla
                     else {
-                        abort(400, "No se puede determinar el precio unitario.");
+                        abort(422, "No se puede determinar el precio unitario.");
                     }
                     
                     // --- BLOQUE 2: GESTIÓN DE STOCK ---
                     
                     // CASO A: Producto vendido por PESO (KG)
                     if($line->product->unit === 'kg'){
-                        //Para los productos que funcionan por peso, el cliente hace la demanda de una cantidad de peso y se guarda en el
-                        //campo de weight_at_moment del pedido, y en el campo quantity se dejaría marcado como 1 para evitar posibles fallos de cálculo
-                        //que puedan pasar
+                        
                         $weightDifference = $realWeight - $line->weight_at_moment;
 
                         // Si la diferencia es positiva, estamos quitando stock. Verificamos que haya suficiente.
@@ -255,6 +178,8 @@ class SellerOrderController extends Controller
                         // Con decrement, se opera automáticamente: 
                         // - Si $weightDifference es positivo (ej: 0.5), resta stock.
                         // - Si es negativo (ej: -0.5), al restar un negativo, suma stock (devuelve al almacén).
+
+                        // ¿Qué ocurre si al principio hay una cantidad de 5 kilos pero luego el vendedor la cambia a 3kilos? ¿Se recupera el stock o no pasa nada?
                         $line->product->decrement('stock', $weightDifference);
                         
                         // Actualizamos solo el peso en la línea
@@ -273,6 +198,7 @@ class SellerOrderController extends Controller
                         }
 
                         // Ajustamos stock y actualizamos la cantidad en la línea
+                        // Lo mismo que antes, si el cliente pide 5 patatas pero luego quiere 3, esa diferencia de patatas, se suma al stock?
                         $line->product->decrement('stock', $qtyDifference);
                         $line->quantity = $newQuantity; 
                         
@@ -320,7 +246,7 @@ class SellerOrderController extends Controller
     public function markAsReady($orderId){
         $sellerId = Auth::id();
 
-        $order = $this->findOneOrder($orderId, $sellerId, ['pending', 'weight_adjusted']);
+        $order = Order::where('id', $orderId)->where('status', ['pending', 'weight_adjusted'])->firstOrFail();
 
         // Faltaría la opción de configurar un punto de recogida, aunque no sé si eso se hace aquí o en el controlador de puntos de recogida
 
@@ -333,7 +259,7 @@ class SellerOrderController extends Controller
     public function markAsCompleted($orderId){
         $sellerId = Auth::id();
 
-        $order = $this->findOneOrder($orderId, $sellerId, ['ready']);
+        $order = Order::where('id', $orderId)->where('status', 'ready')->firstOrFail();
 
         // Añadir una validación para confirmar que se ha completado el pedido
 
@@ -346,25 +272,17 @@ class SellerOrderController extends Controller
     // Esta función ahora sirve tanto para el VENDEDOR (Rechazar) como para el COMPRADOR (Cancelar)
     public function cancelOrReject(Request $request, $orderId){
 
-        // 1. VALIDACIÓN
-        // El motivo sigue siendo obligatorio. Si es el cliente, puede poner "Ya no lo quiero".
-        $request->validate([
+        $validated = $request->validate([
             'rejection_reason' => 'required|string|min:5|max:255'
         ]);
 
         $userId = Auth::id();
 
-        // 2. BÚSQUEDA DEL PEDIDO (Ya no usamos findOneOrder porque esa era solo para vendedores)
-        // Buscamos el pedido por ID y cargamos las líneas para la devolución de stock
-        $order = Order::with('lines.product')->find($orderId);
-
-        if (!$order) {
-            abort(404, 'Pedido no encontrado');
-        }
+        $order = Order::where('id', $orderId)->with('lines.product')->firstOrFail();
 
         // 3. DETERMINAR EL ROL Y LOS PERMISOS
         $isBuyer = ($order->buyer_id === $userId);
-        $isSeller = ($order->seller_id === $userId);
+        $isSeller = (Auth::id() === $userId);
 
         // Si el usuario no es ni el comprador ni el vendedor de este pedido -> FUERA
         if (!$isBuyer && !$isSeller) {
@@ -389,7 +307,7 @@ class SellerOrderController extends Controller
         }
 
         // 5. TRANSACCIÓN (Devolución de Stock + Cambio de Estado)
-        DB::transaction(function () use ($order, $request, $newStatus) {
+        DB::transaction(function () use ($order, $validated, $newStatus) {
             
             // LÓGICA DE DEVOLUCIÓN DE STOCK
             // Como asumimos que el stock se resta SIEMPRE al crear el pedido ('new'),
@@ -420,7 +338,7 @@ class SellerOrderController extends Controller
             
             // Guardamos el motivo. Es útil saber por qué el cliente canceló.
             // Asegúrate de tener una columna 'cancellation_reason' o usar la misma 'rejection_reason'
-            $order->rejection_reason = $request->rejection_reason; 
+            $order->rejection_reason = $validated['rejection_reason']; 
 
             $order->save();
         });
@@ -432,55 +350,21 @@ class SellerOrderController extends Controller
 
     //----------------------------------------------------------------------------------------------------------
 
-
-    //FUNCIÓN QUE PERMITE LOCALIZAR PEDIDOS DE UN VENDEDOR Y ESTADO/S CONCRETO/S (EN CASO DE NO ENCONTRAR NINGUNO SE NOTIFICARÍA)
-    public function findOneOrder($orderId, $sellerId, array $status){
-        //La función get obtiene todos los registros y los guarda en una colección. Con first, 
-        //se obtiene el primer registro directamente (sólo queremos obtener un pedido concreto) y
-        //no se guarda en formato de colección, lo que ahorra trabajo, ya que entonces habría que
-        //acceder al objeto de dentro de la colección
-        $order = Order::where('id', $orderId)
-                    ->where('seller_id', $sellerId)
-                    ->whereIn('status', $status)
-                    ->first();
-
-        if(!$order){
-            abort(404, 'No se ha encontrado el pedido');
-        }
-
-        return $order;
-    }
-
-    //FUNCIÓN PARA ENCONTRAR TODOS LOS PEDIDOS QUE SE CORRESPONDAN CON UN VENDEDOR Y SEAN DE UNO
-    //O VARIOS ESTADOS DEFINIDOS
-    public function findAllOrders($sellerId, array $status){
-        $orders = Order::with(['buyer', 'lines.product'])
-                        ->where('seller_id', $sellerId)
-                        ->whereIn('status', $status)
-                        ->get();
-
-        if(!$orders){
-            abort(404, 'No se ha encontrado ningún pedido');
-        }
-
-        return $orders;
-    }
-
     //FUNCION QUE COMPLEMENTA A LAS FUNCIONES DE BÚESQUEDA PARA FORMATAR LA SALIDA Y DEVOLVER LOS DATOS INTERESANTES
     public function formatOrders($orders){
         return $orders->map(function($order){
             return[
                 'id' => $order->id,
                 'status' => $order->status,
-                'buyer_name' => $order->buyer->name,
+                'buyer_name' => $order->buyer?->name ?? 'Comprador eliminado',
                 'total_price' => $order->total_price,
                 'rejection_reason' => $order->rejection_reason,
                 'lines' => $order->lines->map(function($line) {
                     return [
                         'id' => $line->id,
-                        'name' => $line->product->title,
+                        'name' => $line->product?->title ?? 'Producto eliminado',
                         'quantity' => $line->quantity,
-                        'unit' => $line->product->unit,
+                        'unit' => $line->product?->unit ?? 'ud',
                         'estimated_weight' => $line->weight_at_moment,
                         'real_weight' => $line->real_weight,
                         'line_price' => $line->price_at_moment

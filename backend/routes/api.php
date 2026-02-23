@@ -73,15 +73,10 @@ Route::middleware('auth:sanctum')->group(function () {
 
 
     // --- 📋 GESTIÓN DE PEDIDOS (PANEL VENDEDOR) ---
-    Route::get('/seller/orders/new', [SellerOrderController::class, 'getNew']);
-    Route::get('/seller/orders/pending', [SellerOrderController::class, 'getPending']);
-    Route::get('/seller/orders/adjusted', [SellerOrderController::class, 'getAdjusted']);
-    Route::get('/seller/orders/ready', [SellerOrderController::class, 'getReady']);
-    Route::get('/seller/orders/history', [SellerOrderController::class, 'getHistory']);
-    
+   
     // Detalles y Acciones
+    Route::get('/seller/orders', [SellerOrderController::class, 'index']);
     Route::get('/seller/orders/{id}', [SellerOrderController::class, 'show']);
-    Route::post('/seller/orders/{id}/store', [SellerOrderController::class, 'store']);
     Route::put('/seller/orders/{id}/mark-pending', [SellerOrderController::class, 'markAsPending']);
     Route::put('/seller/orders/{id}/update', [SellerOrderController::class, 'update']);
     Route::put('/seller/orders/{id}/mark-ready', [SellerOrderController::class, 'markAsReady']);
