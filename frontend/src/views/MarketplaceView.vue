@@ -12,7 +12,7 @@ const loading = ref(true);
 const router = useRouter();
 const toast = useToast();
 
-const BASE_URL = 'http://localhost:8000/storage/';
+const BASE_URL = 'https://proximarkt-proyecto.azurewebsites.net/storage/';
 
 // Variables Modal Compra
 const showModal = ref(false);

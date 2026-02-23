@@ -5,7 +5,7 @@ import api from '@/api/axios';
 
 const isLoggedIn = ref(!!localStorage.getItem('auth_token'));
 const userData = ref(null); 
-const BASE_URL = 'http://localhost:8000/storage/'; 
+const BASE_URL = 'https://proximarkt-proyecto.azurewebsites.net/storage/'; 
 const userCoords = ref(null); 
 
 const nearbyAds = ref([]); 
