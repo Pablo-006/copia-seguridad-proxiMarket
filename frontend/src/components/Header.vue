@@ -6,7 +6,7 @@ import NotificationBell from '@/components/NotificationBell.vue';
 
 const isLoggedIn = ref(false);
 const userData = ref(null);
-const BASE_URL = 'http://localhost:8000/storage/';
+const BASE_URL = 'https://proximarkt-proyecto.azurewebsites.net/storage/';
 const route = useRoute(); 
 
 const fetchUser = async () => {
