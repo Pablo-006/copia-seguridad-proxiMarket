@@ -11,7 +11,8 @@ use App\Http\Controllers\OrderController;
 use App\Http\Controllers\PickupPointController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\GameTestController;
-use App\Http\Controllers\ReviewController; // ⬅️ NUEVO: Importar el controlador
+use App\Http\Controllers\ReviewController;
+use App\Http\Controllers\LogController;
 
 /*
 |--------------------------------------------------------------------------
@@ -42,6 +43,10 @@ Route::get('/juegos', [GameTestController::class, 'index']);
 */
 
 Route::middleware('auth:sanctum')->group(function () {
+
+    Route::get('/logs', [LogController::class, 'mostrar']);
+    Route::get('/seller/logs/user/{id}', [LogController::class, 'show']);
+
 
     // --- 👤 GESTIÓN DE USUARIO ---
     Route::get('/user', [UserController::class, 'user']);

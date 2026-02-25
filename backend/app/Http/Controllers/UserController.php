@@ -49,7 +49,15 @@ class UserController extends Controller
             'role' => $validated['role'] ?? 'buyer',
         ]);
 
-        return response()->json($user, 201);
+        $log = Log::create([
+            'user_id' => $user->id,
+            'action' => 'CREATE_USER',
+            'table_name' => 'users',
+            'data' => $validated['name'],
+            'ip_address' => '6486158746815486'
+        ]);
+
+        return response()->json($user, $log, 201);
     }
 
     // Get (por ID)

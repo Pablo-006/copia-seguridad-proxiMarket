@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Storage;
 
+use App\Models\Log;
+
 class AuthController extends Controller
 {
     // ... (Login y Register se quedan igual) ...
@@ -38,6 +40,14 @@ class AuthController extends Controller
         $token = $user->createToken('auth_token')->plainTextToken;
 
         $user->load('seller');
+
+        $log = \App\Models\Log::create([
+            'user_id' => $user->id,
+            'action' => 'LOGIN',
+            'table_name' => 'users',
+            'data' => $request->email,
+            'ip_address' => $request->ip(),
+        ]);
 
         // Se devuelve una respuesta en formato JSON
         return response()->json([
@@ -77,6 +87,14 @@ class AuthController extends Controller
             'password' => Hash::make($validated['password']),
         ]);
 
+        $log = \App\Models\Log::create([
+            'user_id' => $user->id,
+            'action' => 'CREATE_USER',
+            'table_name' => 'users',
+            'data' => $validated['name'],
+            'ip_address' => $request->ip(),
+        ]);
+
         // Al igual que en el login, se crea el token y se devuelve una respuesta
         // para poder gestionar la información del usuario y el token
         $token = $user->createToken('auth_token')->plainTextToken;
@@ -85,15 +103,24 @@ class AuthController extends Controller
             'access_token' => $token,
             'token_type' => 'Bearer',
             'user' => $user,
+            'log' => $log,
         ], 201); // El código 201 indica que se ha creado una instancia correctamente
     }
 
     public function logout(Request $request) {
-        // Se accede al usuario que ha iniciado sesión, y se borra
-        // el registro del token que estaba utilizando para navegar por la web
-        // en la base de datos para que deje de ser válido
-        // (también se borra desde la web en la vista del perfil de Vue)
-        $request->user()->currentAccessToken()->delete();
-        return response()->json(['message' => 'Sesión cerrada correctamente.']);
-    }
+    $userId = $request->user()->id; 
+
+    $log = \App\Models\Log::create([
+        'user_id' => $userId,
+        'action' => 'LOGOUT',
+        'table_name' => 'users',
+        'data' => 'sesión cerrada',
+        'ip_address' => $request->ip(),
+    ]);
+
+    $request->user()->currentAccessToken()->delete();
+
+    return response()->json(['message' => 'Sesión cerrada correctamente.']);
+}
+
 }
